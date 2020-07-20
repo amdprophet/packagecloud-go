@@ -56,10 +56,7 @@ func initCobra(cmd *cobra.Command) func() {
 
 		viper.SetConfigType("json")
 		viper.SetConfigFile(cfgFile)
-
-		if err := viper.ReadInConfig(); err != nil {
-			fmt.Println("couldn't open config file:", err)
-		}
+		viper.ReadInConfig()
 	}
 }
 
