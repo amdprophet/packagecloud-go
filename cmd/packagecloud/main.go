@@ -58,7 +58,7 @@ func initCobra(cmd *cobra.Command) func() {
 		viper.SetConfigFile(cfgFile)
 
 		if err := viper.ReadInConfig(); err != nil {
-			er(fmt.Errorf("error reading config: %s", err))
+			fmt.Println("couldn't open config file:", err)
 		}
 	}
 }
