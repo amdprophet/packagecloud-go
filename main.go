@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/amdprophet/packagecloud-go/command"
+	commanderrors "github.com/amdprophet/packagecloud-go/command/errors"
 	"github.com/amdprophet/packagecloud-go/packagecloud"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -96,8 +97,10 @@ func presetRequiredFlags(cmd *cobra.Command) error {
 
 func newRootCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:   "packagecloud",
-		Short: "A Go alternative to the official packagecloud command-line client",
+		Use:           "packagecloud",
+		Short:         "A Go alternative to the official packagecloud command-line client",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 
 	defaultConfig, err := defaultConfigPath()
@@ -142,6 +145,11 @@ func main() {
 	cobra.OnInitialize(initCobra(rootCmd))
 
 	if err := rootCmd.Execute(); err != nil {
+		if _, ok := err.(*commanderrors.ErrInvalidArgs); ok {
+			fmt.Printf("Error: %s\n\n", err)
+			rootCmd.Help()
+			os.Exit(1)
+		}
 		er(err)
 	}
 }
