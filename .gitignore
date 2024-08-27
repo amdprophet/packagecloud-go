@@ -1,1 +1,4 @@
+packagecloud-go
 dist/
+*.deb
+*.rpm
