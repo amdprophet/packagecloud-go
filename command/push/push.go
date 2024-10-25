@@ -28,12 +28,12 @@ func PushCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 		Short: "Push package(s) to repository",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
-				return &commanderrors.ErrInvalidArgs{"requires at least 2 arguments"}
+				return &commanderrors.ErrInvalidArgs{Msg: "requires at least 2 arguments"}
 			}
 
 			repo = strings.Split(args[0], "/")
 			if len(repo) != 4 {
-				return &commanderrors.ErrInvalidArgs{"invalid repo, use format user/repo/distro/version"}
+				return &commanderrors.ErrInvalidArgs{Msg: "invalid repo, use format user/repo/distro/version"}
 			}
 
 			if err := packagecloud.ValidateFileExtensions(args[1:]); err != nil {

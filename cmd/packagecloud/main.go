@@ -142,9 +142,14 @@ func main() {
 	cobra.OnInitialize(initCobra(rootCmd))
 
 	if err := rootCmd.Execute(); err != nil {
-		if _, ok := err.(*commanderrors.ErrInvalidArgs); ok {
-			fmt.Printf("Error: %s\n\n", err)
+		if argsErr, ok := err.(*commanderrors.ErrInvalidArgs); ok {
+			fmt.Printf("Error: %s\n\n", argsErr)
 			rootCmd.Help()
+			os.Exit(1)
+		}
+		if argsErr, ok := err.(*commanderrors.ErrWithUsage); ok {
+			fmt.Printf("Error: %s\n\n", argsErr)
+			argsErr.Usage()
 			os.Exit(1)
 		}
 		er(err)
