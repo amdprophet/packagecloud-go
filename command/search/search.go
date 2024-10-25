@@ -153,12 +153,21 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				}
 				table.Render()
 
-				if !waitForIndexing || indexed || waitRetries >= waitMaxRetries {
+				if !waitForIndexing || indexed {
 					break
 				}
 
-				fmt.Println("\nOne or more packages have not yet been indexed.")
-				fmt.Printf("Waiting %d seconds before trying again.\n", waitSeconds)
+				if waitRetries >= waitMaxRetries {
+					if indexed {
+						break
+					}
+
+					// packages have not been indexed after max retries has been reached
+					return fmt.Errorf("Packages have not finished indexing after %d seconds", waitSeconds*waitMaxRetries)
+				}
+
+				fmt.Println("\nOne or more packages have not yet been indexed")
+				fmt.Printf("Waiting %d seconds before trying again\n", waitSeconds)
 				for i := 0; i < waitSeconds; i++ {
 					fmt.Printf(".")
 					time.Sleep(1 * time.Second)
@@ -177,7 +186,7 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 	cmd.Flags().StringP(flagFilter, shortFlagFilter, "", "name of package type to search for packages (ignored when --dist is set)")
 	cmd.Flags().StringP(flagDist, shortFlagDist, "", "name of the distribution to filter packages by (overrides --filter)")
 	cmd.Flags().BoolP(flagWaitForIndexing, shortFlagWaitForIndexing, false, "wait for packages matching the search string to be indexed")
-	cmd.Flags().IntP(flagWaitSeconds, shortFlagWaitSeconds, 5, "seconds to wait for retrying to check if packages have been indexed")
+	cmd.Flags().IntP(flagWaitSeconds, shortFlagWaitSeconds, 10, "seconds to wait for retrying to check if packages have been indexed")
 	cmd.Flags().IntP(flagWaitMaxRetries, shortFlagWaitMaxRetries, 12, "maximum amount of retry attempts to check if packages have been indexed")
 
 	return cmd
