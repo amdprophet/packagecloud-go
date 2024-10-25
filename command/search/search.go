@@ -133,7 +133,7 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				}
 
 				table := tablewriter.NewWriter(os.Stdout)
-				table.SetHeader([]string{"Name", "Distro", "Version", "Release", "Epoch", "Indexed"})
+				table.SetHeader([]string{"Name", "Distro", "Version", "Release", "Epoch", "Indexed", "Filename", "Type"})
 				table.SetAutoMergeCells(false)
 
 				indexed := true
@@ -148,6 +148,8 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 						pkg.Release,
 						strconv.Itoa(pkg.Epoch),
 						strconv.FormatBool(pkg.Indexed),
+						pkg.Filename,
+						pkg.Type,
 					}
 					table.Append(row)
 				}
