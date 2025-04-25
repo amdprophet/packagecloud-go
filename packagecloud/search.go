@@ -3,9 +3,10 @@ package packagecloud
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"net/url"
+	"sync"
 
-	"github.com/amdprophet/packagecloud-go/util"
+	"github.com/amdprophet/packagecloud-go/types"
 )
 
 const (
@@ -21,16 +22,30 @@ type SearchOptions struct {
 	Dist     string
 }
 
-func (c *Client) Search(options SearchOptions) ([]byte, error) {
-	searchURL := fmt.Sprintf(searchPath, options.RepoUser, options.RepoName)
+func (c *Client) Search(options SearchOptions, per_page string) (types.PackageFragments, error) {
+	var packages types.PackageFragments
+	var mu = &sync.RWMutex{}
 
-	req, err := c.newRequest("GET", searchURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %s", err)
+	if err := c.SearchStream(options, per_page, func(streamPackages types.PackageFragments) {
+		mu.Lock()
+		packages = append(packages, streamPackages...)
+		mu.Unlock()
+	}); err != nil {
+		return nil, err
 	}
 
-	query := req.URL.Query()
-	query.Add("per_page", "250")
+	return packages, nil
+}
+
+func (c *Client) SearchStream(options SearchOptions, per_page string, fn func(types.PackageFragments)) error {
+	searchPath := fmt.Sprintf(searchPath, options.RepoUser, options.RepoName)
+	searchURL, err := url.Parse(searchPath)
+	if err != nil {
+		return fmt.Errorf("this is a bug, failed to parse relative url: %s", err)
+	}
+
+	query := searchURL.Query()
+	query.Add("per_page", per_page)
 
 	if options.Query != "" {
 		query.Add("q", options.Query)
@@ -47,31 +62,18 @@ func (c *Client) Search(options SearchOptions) ([]byte, error) {
 		query.Add("dist", options.Dist)
 	}
 
-	req.URL.RawQuery = query.Encode()
+	searchURL.RawQuery = query.Encode()
+	endpoint := c.getURL(searchURL)
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to perform request: %s", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %s", err)
-	}
-
-	if resp.StatusCode == 402 {
-		var jsonErrs map[string][]string
-		json.Unmarshal(body, &jsonErrs)
-		if len(jsonErrs) == 1 {
-			if errMsgs, ok := jsonErrs["error"]; ok {
-				if len(errMsgs) == 1 && util.SliceContainsString(errMsgs, "payment required") {
-					return nil, ErrPaymentRequired
-				}
+	return c.paginatedRequest("GET", endpoint.String(), nil, "application/json", func(bytes []byte) error {
+		var packages types.PackageFragments
+		if err := json.Unmarshal(bytes, &packages); err != nil {
+			return &UnmarshalError{
+				Data: bytes,
+				Err:  err,
 			}
 		}
-		return nil, fmt.Errorf("api responded with error: %s", string(body))
-	}
-
-	return body, nil
+		fn(packages)
+		return nil
+	})
 }

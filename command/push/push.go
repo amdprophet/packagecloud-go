@@ -1,7 +1,6 @@
 package push
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -55,14 +54,9 @@ func PushCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 
 			filePaths := args[1:]
 
-			bytes, err := client.GetDistributions()
+			packageTypes, err := client.GetDistributions()
 			if err != nil {
 				return fmt.Errorf("failed to fetch distributions: %s", err)
-			}
-
-			var packageTypes types.PackageTypes
-			if err := json.Unmarshal(bytes, &packageTypes); err != nil {
-				return fmt.Errorf("failed to unmarshal distributions json: %s", err)
 			}
 
 			packageType := filepath.Ext(filePaths[0])[1:]
@@ -84,7 +78,8 @@ func PushCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				}
 
 				fmt.Println("uploading package:", filePath)
-				if _, err := client.PushPackage(options); err != nil {
+				_, err := client.PushPackage(options)
+				if err != nil {
 					if skipExists && errors.Is(err, packagecloud.ErrPackageAlreadyExists) {
 						fmt.Println("package already exists, skipping...")
 						continue

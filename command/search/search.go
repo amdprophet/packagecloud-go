@@ -10,7 +10,6 @@ import (
 
 	commanderrors "github.com/amdprophet/packagecloud-go/command/errors"
 	"github.com/amdprophet/packagecloud-go/packagecloud"
-	"github.com/amdprophet/packagecloud-go/types"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
@@ -117,30 +116,50 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 
 			waitRetries := 0
 			for {
-				bytes, err := client.Search(options)
+				packages, err := client.Search(options, "250")
 				if err != nil {
 					return fmt.Errorf("failed to retrieve search results: %s", err)
 				}
 
-				if format == "json" {
-					fmt.Println(string(bytes))
-					return nil
+				indexed := packages.Indexed()
+
+				if waitForIndexing && !indexed {
+					if waitRetries >= waitMaxRetries {
+						// packages have not been indexed after max retries has been reached
+						return fmt.Errorf("Packages have not finished indexing after %d seconds", waitSeconds*waitMaxRetries)
+					}
+
+					if format != "json" {
+						fmt.Println("\nOne or more packages have not yet been indexed")
+						fmt.Printf("Waiting %d seconds before trying again\n", waitSeconds)
+						fmt.Println("")
+					}
+
+					for i := 0; i < waitSeconds; i++ {
+						if format != "json" {
+							fmt.Printf(".")
+						}
+						time.Sleep(1 * time.Second)
+					}
+
+					waitRetries++
+					continue
 				}
 
-				var packages types.Packages
-				if err := json.Unmarshal(bytes, &packages); err != nil {
-					return fmt.Errorf("failed to unmarshal search results json: %s", err)
+				if format == "json" {
+					bytes, err := json.Marshal(packages)
+					if err != nil {
+						return fmt.Errorf("failed to marshal packages: %w", err)
+					}
+					fmt.Println(string(bytes))
+					return nil
 				}
 
 				table := tablewriter.NewWriter(os.Stdout)
 				table.SetHeader([]string{"Name", "Distro", "Version", "Release", "Epoch", "Indexed", "Filename", "Type"})
 				table.SetAutoMergeCells(false)
 
-				indexed := true
 				for _, pkg := range packages {
-					if !pkg.Indexed {
-						indexed = false
-					}
 					row := []string{
 						pkg.Name,
 						pkg.DistroVersion,
@@ -155,31 +174,8 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				}
 				table.Render()
 
-				if !waitForIndexing || indexed {
-					break
-				}
-
-				if waitRetries >= waitMaxRetries {
-					if indexed {
-						break
-					}
-
-					// packages have not been indexed after max retries has been reached
-					return fmt.Errorf("Packages have not finished indexing after %d seconds", waitSeconds*waitMaxRetries)
-				}
-
-				fmt.Println("\nOne or more packages have not yet been indexed")
-				fmt.Printf("Waiting %d seconds before trying again\n", waitSeconds)
-				for i := 0; i < waitSeconds; i++ {
-					fmt.Printf(".")
-					time.Sleep(1 * time.Second)
-				}
-				fmt.Println("")
-
-				waitRetries++
+				return nil
 			}
-
-			return nil
 		},
 	}
 

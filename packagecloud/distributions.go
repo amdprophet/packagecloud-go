@@ -3,44 +3,32 @@ package packagecloud
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"net/url"
 
-	"github.com/amdprophet/packagecloud-go/util"
+	"github.com/amdprophet/packagecloud-go/types"
 )
 
 const (
 	distributionsPath = "/api/v1/distributions.json"
 )
 
-func (c *Client) GetDistributions() ([]byte, error) {
-	req, err := c.newRequest("GET", distributionsPath, nil)
+func (c *Client) GetDistributions() (types.PackageTypes, error) {
+	distributionsURL, err := url.Parse(distributionsPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %s", err)
+		return nil, fmt.Errorf("this is a bug, failed to parse relative url: %s", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	endpoint := c.getURL(distributionsURL)
+
+	resp, err := c.apiRequest("GET", endpoint.String(), nil, "application/json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform request: %s", err)
 	}
-	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %s", err)
+	var packageTypes types.PackageTypes
+	if err := json.Unmarshal(resp.Body, &packageTypes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal distributions json: %s", err)
 	}
 
-	if resp.StatusCode == 402 {
-		var jsonErrs map[string][]string
-		json.Unmarshal(body, &jsonErrs)
-		if len(jsonErrs) == 1 {
-			if errMsgs, ok := jsonErrs["error"]; ok {
-				if len(errMsgs) == 1 && util.SliceContainsString(errMsgs, "payment required") {
-					return nil, ErrPaymentRequired
-				}
-			}
-		}
-		return nil, fmt.Errorf("api responded with error: %s", string(body))
-	}
-
-	return body, nil
+	return packageTypes, nil
 }

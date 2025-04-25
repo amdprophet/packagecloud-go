@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
+	"net/url"
 	"os"
 	"path/filepath"
 
+	"github.com/amdprophet/packagecloud-go/types"
 	"github.com/amdprophet/packagecloud-go/util"
 )
 
@@ -54,7 +55,7 @@ type PushPackageOptions struct {
 	FilePath string
 }
 
-func (c *Client) PushPackage(options PushPackageOptions) ([]byte, error) {
+func (c *Client) PushPackage(options PushPackageOptions) (*types.PackageDetails, error) {
 	reqBody := &bytes.Buffer{}
 	writer := multipart.NewWriter(reqBody)
 
@@ -75,36 +76,27 @@ func (c *Client) PushPackage(options PushPackageOptions) ([]byte, error) {
 	io.Copy(part, file)
 	writer.Close()
 
-	packagesURL := fmt.Sprintf(packagesPath, options.RepoUser, options.RepoName)
-	req, err := c.newRequest("POST", packagesURL, reqBody)
+	path := fmt.Sprintf(packagesPath, options.RepoUser, options.RepoName)
+	packagesURL, err := url.Parse(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %s", err)
+		return nil, fmt.Errorf("this is a bug, failed to parse relative url: %s", err)
 	}
-	req.Header.Add("Content-Type", writer.FormDataContentType())
 
-	resp, err := c.httpClient.Do(req)
+	endpoint := c.getURL(packagesURL)
+	contentType := writer.FormDataContentType()
+
+	resp, err := c.apiRequest("POST", endpoint.String(), reqBody, contentType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform request: %s", err)
 	}
-	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %s", err)
-	}
-
-	if resp.StatusCode == 422 {
-		var jsonErrs map[string][]string
-		json.Unmarshal(body, &jsonErrs)
-		if len(jsonErrs) == 1 {
-			if errMsgs, ok := jsonErrs["filename"]; ok {
-				if len(errMsgs) == 1 && util.SliceContainsString(errMsgs, "has already been taken") {
-					return nil, ErrPackageAlreadyExists
-				}
-			}
+	var pkg types.PackageDetails
+	if err := json.Unmarshal(resp.Body, &pkg); err != nil {
+		return nil, &UnmarshalError{
+			Data: resp.Body,
+			Err:  err,
 		}
-		return nil, fmt.Errorf("api responded with error: %s", string(body))
 	}
 
-	return nil, nil
+	return &pkg, nil
 }

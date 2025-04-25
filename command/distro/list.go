@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/amdprophet/packagecloud-go/packagecloud"
-	"github.com/amdprophet/packagecloud-go/types"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
@@ -33,19 +32,18 @@ func ListCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				return fmt.Errorf("failed to parse format: %s", err)
 			}
 
-			bytes, err := client.GetDistributions()
+			packageTypes, err := client.GetDistributions()
 			if err != nil {
 				return fmt.Errorf("failed to retrieve distributions: %s", err)
 			}
 
 			if format == "json" {
+				bytes, err := json.Marshal(packageTypes)
+				if err != nil {
+					return fmt.Errorf("failed to marshal packages: %w", err)
+				}
 				fmt.Println(string(bytes))
 				return nil
-			}
-
-			var packageTypes types.PackageTypes
-			if err := json.Unmarshal(bytes, &packageTypes); err != nil {
-				return fmt.Errorf("failed to unmarshal distributions json: %s", err)
 			}
 
 			table := tablewriter.NewWriter(os.Stdout)
