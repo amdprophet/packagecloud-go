@@ -29,6 +29,12 @@ const (
 	flagDist      = "dist"
 	shortFlagDist = "d"
 
+	flagArch      = "arch"
+	shortFlagArch = "a"
+
+	flagPerPage      = "per-page"
+	shortFlagPerPage = "p"
+
 	flagWaitForIndexing      = "wait-for-indexing"
 	shortFlagWaitForIndexing = "w"
 
@@ -77,6 +83,16 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				return err
 			}
 
+			arch, err := cmd.Flags().GetString(flagArch)
+			if err != nil {
+				return err
+			}
+
+			perPage, err := cmd.Flags().GetString(flagPerPage)
+			if err != nil {
+				return err
+			}
+
 			waitForIndexing, err := cmd.Flags().GetBool(flagWaitForIndexing)
 			if err != nil {
 				return err
@@ -92,8 +108,18 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				return err
 			}
 
-			if query == "" && filter == "" && dist == "" {
-				return newErrWithUsage("one or more of the query, filter and/or dist flags must be specified")
+			options := packagecloud.SearchOptions{
+				RepoUser: repo[0],
+				RepoName: repo[1],
+				Query:    query,
+				Filter:   filter,
+				Dist:     dist,
+				Arch:     arch,
+				PerPage:  perPage,
+			}
+
+			if err := options.Validate(); err != nil {
+				return newErrWithUsage(err.Error())
 			}
 
 			client, err := getClientFn()
@@ -106,17 +132,9 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				return fmt.Errorf("failed to parse format: %s", err)
 			}
 
-			options := packagecloud.SearchOptions{
-				RepoUser: repo[0],
-				RepoName: repo[1],
-				Query:    query,
-				Filter:   filter,
-				Dist:     dist,
-			}
-
 			waitRetries := 0
 			for {
-				packages, err := client.Search(options, "250")
+				packages, err := client.Search(options)
 				if err != nil {
 					return fmt.Errorf("failed to retrieve search results: %s", err)
 				}
@@ -183,6 +201,8 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 	cmd.Flags().StringP(flagQuery, shortFlagQuery, "", "search string to search for package filename(s)")
 	cmd.Flags().StringP(flagFilter, shortFlagFilter, "", "name of package type to search for packages (ignored when --dist is set)")
 	cmd.Flags().StringP(flagDist, shortFlagDist, "", "name of the distribution to filter packages by (overrides --filter)")
+	cmd.Flags().StringP(flagArch, shortFlagArch, "", "architecture to filter packages by (alpine/rpm/debian only)")
+	cmd.Flags().StringP(flagPerPage, shortFlagPerPage, "256", "number of packages to return from the result set with each request")
 	cmd.Flags().BoolP(flagWaitForIndexing, shortFlagWaitForIndexing, false, "wait for packages matching the search string to be indexed")
 	cmd.Flags().IntP(flagWaitSeconds, shortFlagWaitSeconds, 10, "seconds to wait for retrying to check if packages have been indexed")
 	cmd.Flags().IntP(flagWaitMaxRetries, shortFlagWaitMaxRetries, 12, "maximum amount of retry attempts to check if packages have been indexed")

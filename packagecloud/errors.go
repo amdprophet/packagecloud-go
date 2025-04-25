@@ -10,6 +10,12 @@ var (
 	ErrPaymentRequired      = errors.New("payment required")
 )
 
+type MissingSearchOptionsError struct{}
+
+func (e *MissingSearchOptionsError) Error() string {
+	return "one or more of the query, filter, dist, and/or arch flags must be specified"
+}
+
 type UnmarshalError struct {
 	Data []byte
 	Err  error

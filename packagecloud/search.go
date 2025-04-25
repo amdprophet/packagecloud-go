@@ -15,18 +15,47 @@ const (
 )
 
 type SearchOptions struct {
+	// RepoUser is the username that the repository to search belongs to.
 	RepoUser string
+
+	// RepoName is the name of the repository to search.
 	RepoName string
-	Query    string
-	Filter   string
-	Dist     string
+
+	// Query is a query string to search for package filename. If empty string
+	// is passed, all packages are returned.
+	Query string
+
+	// Filter can be used to search by package type.
+	// (RPMs, Debs, DSCs, Gem, Python, Node).
+	// Ignored when Dist is present.
+	Filter string
+
+	// Dist is the name of the distribution that the package is in.
+	// (i.e. ubuntu, el/6)
+	// Overrides Filter.
+	Dist string
+
+	// Arch is the architecture of the packages. (i.e. x86_64, arm64, amd64).
+	// Alpine/RPM/Debian only.
+	Arch string
+
+	// PerPage is the number of packages to return from the results set. If
+	// nothing passed the default is 30.
+	PerPage string
 }
 
-func (c *Client) Search(options SearchOptions, per_page string) (types.PackageFragments, error) {
+func (o SearchOptions) Validate() error {
+	if o.Query == "" && o.Filter == "" && o.Dist == "" && o.Arch == "" {
+		return &MissingSearchOptionsError{}
+	}
+	return nil
+}
+
+func (c *Client) Search(options SearchOptions) (types.PackageFragments, error) {
 	var packages types.PackageFragments
 	var mu = &sync.RWMutex{}
 
-	if err := c.SearchStream(options, per_page, func(streamPackages types.PackageFragments) {
+	if err := c.SearchStream(options, func(streamPackages types.PackageFragments) {
 		mu.Lock()
 		packages = append(packages, streamPackages...)
 		mu.Unlock()
@@ -37,7 +66,11 @@ func (c *Client) Search(options SearchOptions, per_page string) (types.PackageFr
 	return packages, nil
 }
 
-func (c *Client) SearchStream(options SearchOptions, per_page string, fn func(types.PackageFragments)) error {
+func (c *Client) SearchStream(options SearchOptions, fn func(types.PackageFragments)) error {
+	if err := options.Validate(); err != nil {
+		return err
+	}
+
 	searchPath := fmt.Sprintf(searchPath, options.RepoUser, options.RepoName)
 	searchURL, err := url.Parse(searchPath)
 	if err != nil {
@@ -45,7 +78,6 @@ func (c *Client) SearchStream(options SearchOptions, per_page string, fn func(ty
 	}
 
 	query := searchURL.Query()
-	query.Add("per_page", per_page)
 
 	if options.Query != "" {
 		query.Add("q", options.Query)
@@ -56,10 +88,15 @@ func (c *Client) SearchStream(options SearchOptions, per_page string, fn func(ty
 	}
 
 	if options.Dist != "" {
-		if query.Has("filter") {
-			query.Del("filter")
-		}
 		query.Add("dist", options.Dist)
+	}
+
+	if options.Arch != "" {
+		query.Add("arch", options.Arch)
+	}
+
+	if options.PerPage != "" {
+		query.Add("per_page", options.PerPage)
 	}
 
 	searchURL.RawQuery = query.Encode()
