@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/amdprophet/packagecloud-go/util"
 	"github.com/peterhellberg/link"
@@ -74,13 +75,18 @@ func (c *Client) apiRequest(method string, url string, payload io.Reader, conten
 }
 
 func (c *Client) paginatedRequest(method string, endpoint string, payload io.Reader, contentType string, fn func([]byte) error) error {
+	wg := sync.WaitGroup{}
 	for {
 		resp, err := c.apiRequest(method, endpoint, payload, contentType)
 		if err != nil {
 			return err
 		}
 
-		go fn(resp.Body)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fn(resp.Body)
+		}()
 
 		next, found := resp.LinkGroup["next"]
 		if !found {
@@ -88,6 +94,7 @@ func (c *Client) paginatedRequest(method string, endpoint string, payload io.Rea
 		}
 		endpoint = next.URI
 	}
+	wg.Wait()
 
 	return nil
 }

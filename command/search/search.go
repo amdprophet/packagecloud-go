@@ -54,8 +54,8 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 		Args: func(cmd *cobra.Command, args []string) error {
 			newErrWithUsage := commanderrors.NewErrorWithUsageFactory(cmd.Help)
 
-			if len(args) < 1 {
-				return newErrWithUsage("requires at least 2 arguments")
+			if len(args) != 1 {
+				return newErrWithUsage("requires exactly 1 argument")
 			}
 
 			repo = strings.Split(args[0], "/")

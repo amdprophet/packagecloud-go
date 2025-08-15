@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	envToken = "PACKAGECLOUD_TOKEN"
+
 	flagConfig  = "config"
 	flagURL     = "url"
 	flagToken   = "token"
@@ -115,6 +117,7 @@ func newRootCmd() (*cobra.Command, error) {
 	viper.BindPFlag(flagURL, cmd.PersistentFlags().Lookup(flagURL))
 	viper.BindPFlag(flagToken, cmd.PersistentFlags().Lookup(flagToken))
 	viper.BindPFlag(flagVerbose, cmd.PersistentFlags().Lookup(flagVerbose))
+	viper.BindEnv(flagToken, envToken)
 
 	getClientFn := func() (*packagecloud.Client, error) {
 		var config packagecloud.Config

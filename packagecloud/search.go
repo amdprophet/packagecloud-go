@@ -111,6 +111,7 @@ func (c *Client) SearchStream(options SearchOptions, fn func(types.PackageFragme
 			}
 		}
 		fn(packages)
+
 		return nil
 	})
 }

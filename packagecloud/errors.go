@@ -24,3 +24,11 @@ type UnmarshalError struct {
 func (e *UnmarshalError) Error() string {
 	return fmt.Sprintf("failed to unmarshal data: %s\n%s", e.Err, string(e.Data))
 }
+
+type MissingOptionError struct {
+	Field string
+}
+
+func (e *MissingOptionError) Error() string {
+	return fmt.Sprintf("missing required option: %s", e.Field)
+}
