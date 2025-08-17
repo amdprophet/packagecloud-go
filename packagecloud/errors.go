@@ -6,8 +6,10 @@ import (
 )
 
 var (
+	ErrNotFound             = errors.New("not found -- wrong api token?")
 	ErrPackageAlreadyExists = errors.New("package already exists")
 	ErrPaymentRequired      = errors.New("payment required")
+	ErrUnauthenticated      = errors.New("authentication failed -- is token set?")
 )
 
 type MissingSearchOptionsError struct{}

@@ -5,6 +5,7 @@ import (
 	"github.com/amdprophet/packagecloud-go/command/promote"
 	"github.com/amdprophet/packagecloud-go/command/push"
 	"github.com/amdprophet/packagecloud-go/command/search"
+	"github.com/amdprophet/packagecloud-go/command/versions"
 	"github.com/amdprophet/packagecloud-go/packagecloud"
 	"github.com/spf13/cobra"
 )
@@ -15,5 +16,6 @@ func AddCommands(rootCmd *cobra.Command, getClientFn packagecloud.GetClientFn) {
 		push.PushCommand(getClientFn),
 		promote.HelpCommand(getClientFn),
 		search.SearchCommand(getClientFn),
+		versions.HelpCommand(getClientFn),
 	)
 }

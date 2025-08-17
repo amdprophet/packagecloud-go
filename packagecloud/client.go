@@ -59,8 +59,12 @@ func (c *Client) apiRequest(method string, url string, payload io.Reader, conten
 
 	var httpErr error
 	switch resp.StatusCode {
+	case 401:
+		return nil, ErrUnauthenticated
 	case 402:
 		httpErr = getResponseError(body, "payment required", ErrPaymentRequired)
+	case 404:
+		return nil, ErrNotFound
 	case 422:
 		httpErr = getResponseError(body, "has already been taken", ErrPackageAlreadyExists)
 	}

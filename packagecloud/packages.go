@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/amdprophet/packagecloud-go/types"
 	"github.com/amdprophet/packagecloud-go/util"
@@ -99,4 +100,44 @@ func (c *Client) PushPackage(options PushPackageOptions) (*types.PackageDetails,
 	}
 
 	return &pkg, nil
+}
+
+func (c *Client) ListPackages(repo Repo) (types.PackageFragments, error) {
+	var packages types.PackageFragments
+	mu := &sync.RWMutex{}
+
+	if err := c.ListPackagesStream(repo, func(streamPackages types.PackageFragments) {
+		mu.Lock()
+		packages = append(packages, streamPackages...)
+		mu.Unlock()
+	}); err != nil {
+		return nil, err
+	}
+
+	return packages, nil
+}
+
+func (c *Client) ListPackagesStream(repo Repo, fn func(types.PackageFragments)) error {
+	if err := repo.Validate(); err != nil {
+		return fmt.Errorf("repository validation failed: %w", err)
+	}
+
+	packagesURL, err := url.Parse(fmt.Sprintf(packagesPath, repo.User, repo.Name))
+	if err != nil {
+		return fmt.Errorf("this is a bug, failed to parse relative url: %s", err)
+	}
+
+	endpoint := c.getURL(packagesURL)
+
+	return c.paginatedRequest("GET", endpoint.String(), nil, "application/json", func(bytes []byte) error {
+		var packages types.PackageFragments
+		if err := json.Unmarshal(bytes, &packages); err != nil {
+			return &UnmarshalError{
+				Data: bytes,
+				Err:  err,
+			}
+		}
+		fn(packages)
+		return nil
+	})
 }
