@@ -14,6 +14,7 @@ func HelpCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 	cmd.AddCommand(ListCommand(getClientFn))
 	cmd.AddCommand(LatestVersionCommand(getClientFn))
 	cmd.AddCommand(PreviousVersionCommand(getClientFn))
+	cmd.AddCommand(CompareCommand(getClientFn))
 
 	return cmd
 }
