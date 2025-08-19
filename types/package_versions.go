@@ -16,7 +16,7 @@ func (p PackageVersions) SemanticVersions() ([]*semver.Version, error) {
 	for version := range p {
 		v, err := semver.NewVersion(version)
 		if err != nil {
-			return nil, fmt.Errorf("Error parsing version: %s", err)
+			return nil, fmt.Errorf("error parsing version: %s", err)
 		}
 		versions = append(versions, v)
 	}

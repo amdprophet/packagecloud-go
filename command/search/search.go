@@ -144,7 +144,7 @@ func SearchCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 				if waitForIndexing && !indexed {
 					if waitRetries >= waitMaxRetries {
 						// packages have not been indexed after max retries has been reached
-						return fmt.Errorf("Packages have not finished indexing after %d seconds", waitSeconds*waitMaxRetries)
+						return fmt.Errorf("packages have not finished indexing after %d seconds", waitSeconds*waitMaxRetries)
 					}
 
 					if format != "json" {
