@@ -36,7 +36,7 @@ func PushCommand(getClientFn packagecloud.GetClientFn) *cobra.Command {
 			}
 
 			if err := packagecloud.ValidateFileExtensions(args[1:]); err != nil {
-				return &commanderrors.ErrInvalidArgs{err.Error()}
+				return &commanderrors.ErrInvalidArgs{Msg: err.Error()}
 			}
 
 			return nil
